@@ -63,13 +63,13 @@ on:
 
       createArtifacts:
         required: false
-        default: true
+        default: false
         type: boolean
         description: "If creates Artifacts"
 
       signArtifacts:
         required: false
-        default: true
+        default: false
         type: boolean
         description: "If sign Artifacts"
 

@@ -183,13 +183,13 @@ jobs:
         with:
           setAllVars: true
 
-      - name: Install NuGet
+      - name: NuGet -> Install
         uses: nuget/setup-nuget@v2
         with:
           nuget-api-key: ${{ secrets.NuGetAPIKey }}
           nuget-version: "6.x"
 
-      - name: NuGet Restore
+      - name: NuGet -> Restore
         run: nuget restore ${{ inputs.solutionFile }}
         working-directory: ${{ inputs.srcFolder }}
 
@@ -198,12 +198,12 @@ jobs:
         run: msbuild /t:build,pack /nowarn:MSB4011 /maxcpucount /p:NoPackageAnalysis=true /verbosity:minimal /p:Configuration=${{ inputs.configuration }} ${{ inputs.solutionFile }}
         working-directory: ${{ inputs.srcFolder }}
 
-      - name: Build with DotNet
+      - name: Build with dotnet
         if: inputs.dotNetBuild == true
         run: dotnet build --no-restore --configuration ${{ inputs.configuration }} ${{ inputs.solutionFile }}
         working-directory: ${{ inputs.srcFolder }}
 
-      - name: Generate pack with DotNet
+      - name: Generate pack with dotnet
         if: inputs.dotNetBuild == true
         run: dotnet pack --no-restore --configuration ${{ inputs.configuration }} ${{ inputs.solutionFile }}
         working-directory: ${{ inputs.srcFolder }}
@@ -219,7 +219,7 @@ jobs:
           output-format: ${{ inputs.coverletOutputformat }}
           configuration: ${{ inputs.configuration }}
 
-      - name: Upload Code Coverage
+      - name: Upload Code Coverage to CoveCov
         uses: codecov/codecov-action@v4
         if: inputs.performTests == true
         with:
@@ -253,20 +253,32 @@ jobs:
             description: reactiveui
             config-file: SignPackages.json
 
-      - name: Changelog
-        uses: glennawatson/ChangeLog@v1
+      - name: Update CHANGELOG
         id: changelog
+        uses: requarks/changelog-action@v1
+        if: inputs.createRelease == true
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.nbgv.outputs.SemVer2 }}
 
       - name: Create Release
+        uses: ncipollo/release-action@v1.12.0
         if: inputs.createRelease == true
-        uses: actions/create-release@v1.1.4
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
-            tag_name: ${{ steps.nbgv.outputs.SemVer2 }}
-            release_name: ${{ steps.nbgv.outputs.SemVer2 }}
-            body: |
-                ${{ steps.changelog.outputs.commitLog }}
+          allowUpdates: true
+          draft: false
+          makeLatest: true
+          name: ${{ steps.nbgv.outputs.SemVer2 }}
+          body: ${{ steps.changelog.outputs.changes }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit CHANGELOG.md
+        uses: stefanzweifel/git-auto-commit-action@v4
+        if: inputs.createRelease == true
+        with:
+          branch: master
+          commit_message: 'docs: update CHANGELOG.md for ${{ steps.nbgv.outputs.SemVer2 }} [skip ci]'
+          file_pattern: CHANGELOG.md
 
       - name: Publish to Nuget
         if: inputs.publishNuget == true
@@ -276,7 +288,7 @@ jobs:
         run: |
             dotnet nuget push -s ${{ env.SOURCE_URL }} -k ${{ env.NUGET_AUTH_TOKEN }} --skip-duplicate **/*.nupkg
 
-      - name: Publish to Nuget
+      - name: Publish to Custom Nuget
         if: inputs.publishCustomNuget == true
         env:
             CUSTOM_NUGET_AUTH_TOKEN: ${{ secrets.CUSTOM_NUGET_API_KEY }}

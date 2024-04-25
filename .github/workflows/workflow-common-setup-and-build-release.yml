@@ -1,4 +1,4 @@
-name: Common .NET setup and build workflow
+name: Common .NET setup and build workflow release
 
 on:
     workflow_call:
@@ -97,6 +97,18 @@ on:
                 default: ""
                 type: string
                 description: "Sign Description of the project."
+
+            createRelease:
+                required: false
+                default: false
+                type: boolean
+                description: "If true, create new release."
+
+            createChangelog:
+                required: false
+                default: false
+                type: boolean
+                description: "If true, create changelog from commit message."
 
             publishNuget:
                 required: false
@@ -268,6 +280,35 @@ jobs:
                 project-name: ${{ inputs.signProjectName }}
                 description: ${{ inputs.signDescription }}
                 config-file: SignPackages.json
+
+            - name: Update CHANGELOG
+              id: changelog
+              uses: requarks/changelog-action@v1
+              if: inputs.createChangelog == true
+              with:
+                token: ${{ secrets.GITHUB_TOKEN }}
+                includeInvalidCommits: true
+                tag: ${{ steps.nbgv.outputs.SemVer2 }}
+                reverseOrder: true
+
+            - name: Create Release
+              uses: ncipollo/release-action@v1.12.0
+              if: inputs.createRelease == true
+              with:
+                allowUpdates: true
+                draft: false
+                makeLatest: true
+                name: ${{ steps.nbgv.outputs.SemVer2 }}
+                body: ${{ steps.changelog.outputs.changes }}
+                token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Commit CHANGELOG.md
+              uses: stefanzweifel/git-auto-commit-action@v4
+              if: inputs.createChangelog == true
+              with:
+                branch: master
+                commit_message: 'docs: update CHANGELOG.md for ${{ steps.nbgv.outputs.SemVer2 }} [skip ci]'
+                file_pattern: CHANGELOG.md
 
             - name: Publish to Nuget
               if: inputs.publishNuget == true

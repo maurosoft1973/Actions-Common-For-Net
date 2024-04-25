@@ -1,0 +1,174 @@
+name: Common .NET setup and build workflow
+
+on:
+  workflow_call:
+    inputs:
+      configuration:
+        required: true
+        type: string
+        description: 'The build configuration. Eg debug/release'
+
+      productNamespacePrefix:
+        required: true
+        type: string
+        description: 'The namespace prefix used to exclude unrelated items for code coverage'
+
+      useVisualStudioPreview:
+        required: true
+        type: boolean
+        description: 'If the Visual Studio preview edition is used'
+
+      useMauiCheckDotNetTool:
+        required: true
+        type: boolean
+        description: 'Use the Maui Check dotnet tool to make sure Maui is up to date'
+
+      solutionFile:
+        required: false
+        type: string
+        description: 'Optional name of a solution file founded in the srcFolder'
+        
+      srcFolder:
+        required: false
+        type: string
+        default: 'src'
+        description: 'The folder where the source can be found'
+        
+      performTests:
+        required: false
+        default: true
+        type: boolean
+        description: 'If tests need to be conducted'
+        
+      useNBGV:
+        required: false
+        default: true
+        type: boolean
+        description: 'If uses NBGV'
+        
+      createArtifacts:
+        required: false
+        default: true
+        type: boolean
+        description: 'If creates Artifacts'
+
+      installWorkflows:
+        required: false
+        default: true
+        type: boolean
+        description: 'If installs Workflows'
+
+      dotNetBuild:
+        required: false
+        default: false
+        type: boolean
+        description: 'If to use a SDK build'
+
+jobs:
+  build:
+    runs-on: windows-2022
+    outputs:
+      nbgv: ${{ steps.nbgv.outputs.SemVer2 }}
+    steps:
+    - name: Get Latest Visual Studio Version
+      if: inputs.useVisualStudioPreview == true
+      shell: bash
+      run: |
+        dotnet tool update -g dotnet-vs
+        vs where release
+        vs update release Enterprise
+        vs modify release Enterprise +mobile +desktop +uwp +web
+        vs where release
+
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4.2.1
+      with:
+        distribution: 'microsoft'
+        java-version: '11'
+        
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        lfs: true
+
+    - name: Setup .NET 6/7/8
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: |
+            6.0.x
+            7.0.x
+            8.0.x
+
+    - name: Install DotNet workloads
+      if: inputs.installWorkflows == true
+      shell: bash
+      run: |
+        dotnet workload install android ios tvos macos maui maccatalyst
+        
+    - name: Run Maui Installation Check
+      if: inputs.useMauiCheckDotNetTool == true
+      shell: bash
+      run: |
+        dotnet tool install -g Redth.Net.Maui.Check
+        maui-check --non-interactive --fix
+        
+    - name: Add MSBuild to PATH
+      if: inputs.dotNetBuild != true
+      uses: microsoft/setup-msbuild@v2.0.0
+      with:
+        vs-prerelease: true
+
+    - name: NBGV
+      if: inputs.useNBGV == true
+      id: nbgv
+      uses: dotnet/nbgv@master
+      with:
+        setAllVars: true
+
+    - name: Install NuGet 
+      uses: nuget/setup-nuget@v2
+      with:
+        nuget-api-key: ${{ secrets.NuGetAPIKey }}
+        nuget-version: '6.x'
+
+    - name: NuGet Restore 
+      run: nuget restore ${{ inputs.solutionFile }}
+      working-directory: ${{ inputs.srcFolder }}
+
+    - name: Build MsBuild
+      if: inputs.dotNetBuild != true
+      run: msbuild /t:build,pack /nowarn:MSB4011 /maxcpucount /p:NoPackageAnalysis=true /verbosity:minimal /p:Configuration=${{ inputs.configuration }} ${{ inputs.solutionFile }}
+      working-directory: ${{ inputs.srcFolder }}
+
+    - name: Build DotNet
+      if: inputs.dotNetBuild == true
+      run: dotnet build --no-restore --configuration ${{ inputs.configuration }} ${{ inputs.solutionFile }}
+      working-directory: ${{ inputs.srcFolder }}
+
+    - name: Build DotNet
+      if: inputs.dotNetBuild == true
+      run: dotnet pack --no-restore --configuration ${{ inputs.configuration }} ${{ inputs.solutionFile }}
+      working-directory: ${{ inputs.srcFolder }}
+      
+    - name: Run Unit Tests and Generate Coverage
+      uses: glennawatson/coverlet-msbuild@v2.1
+      if: inputs.performTests == true
+      with:
+        project-files: '${{ inputs.srcFolder }}/**/*Tests*.csproj'
+        no-build: true
+        exclude-filter: '[${{inputs.productNamespacePrefix}}.*.Tests.*]*,[${{inputs.productNamespacePrefix}}.Tests]*,[${{inputs.productNamespacePrefix}}.TestRunner.*]*'
+        include-filter: '[${{inputs.productNamespacePrefix}}*]*'
+        output-format: cobertura
+        configuration: ${{ inputs.configuration }}
+
+    - name: Upload Code Coverage
+      uses: codecov/codecov-action@v4
+      if: inputs.performTests == true
+
+    - name: Create NuGet Artifacts
+      if: inputs.createArtifacts == true
+      uses: actions/upload-artifact@master
+      with:
+        name: nuget
+        path: '**/*.nupkg'

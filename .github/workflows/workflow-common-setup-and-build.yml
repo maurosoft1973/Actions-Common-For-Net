@@ -63,7 +63,12 @@ on:
         default: false
         type: boolean
         description: 'If to use a SDK build'
-
+    secrets:
+      NUGET_API_KEY:
+        required: true
+      CODECOV_TOKEN:
+        required: true
+      
 jobs:
   build:
     runs-on: windows-2022
@@ -165,6 +170,11 @@ jobs:
     - name: Upload Code Coverage
       uses: codecov/codecov-action@v4
       if: inputs.performTests == true
+      with:
+        fail_ci_if_error: true # optional (default = false)
+        verbose: true # optional (default = false)
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
     - name: Create NuGet Artifacts
       if: inputs.createArtifacts == true

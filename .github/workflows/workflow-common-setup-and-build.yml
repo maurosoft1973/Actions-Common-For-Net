@@ -83,13 +83,7 @@ on:
         required: false
         default: false
         type: boolean
-        description: "Publish to Nuget"
-
-      createRelease:
-        required: false
-        default: false
-        type: boolean
-        description: "Create release"
+        description: "Publish to Custom Nuget repository"
 
       installWorkflows:
         required: false
@@ -116,10 +110,10 @@ on:
         required: true
       CUSTOM_NUGET_SOURCE_URL:
         required: false
-        description: "Url of self nuget (Ex: https://nuget.mydomain.com/v3/index.json)"
+        description: "Url for self nuget (Ex: https://nuget.mydomain.com/v3/index.json)"
       CUSTOM_NUGET_API_KEY:
         required: false
-        description: "ApiKey of self nuget"
+        description: "ApiKey for self nuget"
 
 jobs:
   build:
@@ -260,35 +254,6 @@ jobs:
             project-name: reactiveui
             description: reactiveui
             config-file: SignPackages.json
-
-      - name: Update CHANGELOG
-        id: changelog
-        uses: requarks/changelog-action@v1
-        if: inputs.createRelease == true
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          includeInvalidCommits: true
-          tag: ${{ steps.nbgv.outputs.SemVer2 }}
-          reverseOrder: true
-
-      - name: Create Release
-        uses: ncipollo/release-action@v1.12.0
-        if: inputs.createRelease == true
-        with:
-          allowUpdates: true
-          draft: false
-          makeLatest: true
-          name: ${{ steps.nbgv.outputs.SemVer2 }}
-          body: ${{ steps.changelog.outputs.changes }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Commit CHANGELOG.md
-        uses: stefanzweifel/git-auto-commit-action@v4
-        if: inputs.createRelease == true
-        with:
-          branch: master
-          commit_message: 'docs: update CHANGELOG.md for ${{ steps.nbgv.outputs.SemVer2 }} [skip ci]'
-          file_pattern: CHANGELOG.md
 
       - name: Publish to Nuget
         if: inputs.publishNuget == true

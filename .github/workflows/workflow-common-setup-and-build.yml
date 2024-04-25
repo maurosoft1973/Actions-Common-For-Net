@@ -9,17 +9,20 @@ on:
         description: "The build configuration. Eg debug/release"
 
       productNamespacePrefix:
-        required: true
+        required: false
+        default: ""
         type: string
         description: "The namespace prefix used to exclude unrelated items for code coverage"
 
       useVisualStudioPreview:
-        required: true
+        required: false
+        default: false
         type: boolean
         description: "If the Visual Studio preview edition is used"
 
       useMauiCheckDotNetTool:
-        required: true
+        required: false
+        default: false
         type: boolean
         description: "Use the Maui Check dotnet tool to make sure Maui is up to date"
 
@@ -66,7 +69,7 @@ on:
 
       installWorkflows:
         required: false
-        default: true
+        default: false
         type: boolean
         description: "If installs Workflows"
 

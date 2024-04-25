@@ -145,7 +145,7 @@ jobs:
         name: "Build Test Coverage Artifacts"
         runs-on: windows-2022
         outputs:
-            nbgv: ${{ steps.nbgv.outputs.SemVer2 }}
+            nbgv: ${{ steps.nbgv.outputs.SimpleVersion }}
         steps:
             - name: Get Latest Visual Studio Version
               if: inputs.useVisualStudioPreview == true
@@ -288,7 +288,7 @@ jobs:
               with:
                 token: ${{ secrets.GITHUB_TOKEN }}
                 includeInvalidCommits: true
-                tag: ${{ steps.nbgv.outputs.SemVer2 }}
+                tag: ${{ steps.nbgv.outputs.SimpleVersion }}
                 reverseOrder: true
 
             - name: Create Release
@@ -298,7 +298,7 @@ jobs:
                 allowUpdates: true
                 draft: false
                 makeLatest: true
-                name: ${{ steps.nbgv.outputs.SemVer2 }}
+                name: ${{ steps.nbgv.outputs.SimpleVersion }}
                 body: ${{ steps.changelog.outputs.changes }}
                 token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -307,7 +307,7 @@ jobs:
               if: inputs.createChangelog == true
               with:
                 branch: master
-                commit_message: 'docs: update CHANGELOG.md for ${{ steps.nbgv.outputs.SemVer2 }} [skip ci]'
+                commit_message: 'docs: update CHANGELOG.md for ${{ steps.nbgv.outputs.SimpleVersion }} [skip ci]'
                 file_pattern: CHANGELOG.md
 
             - name: Publish to Nuget

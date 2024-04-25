@@ -34,7 +34,7 @@ on:
       srcFolder:
         required: false
         type: string
-        default: "src"
+        default: "./"
         description: "The folder where the source can be found"
 
       performTests:
@@ -75,7 +75,7 @@ on:
 
       dotNetBuild:
         required: false
-        default: false
+        default: true
         type: boolean
         description: "If to use a SDK build"
     secrets:

@@ -67,6 +67,42 @@ on:
         type: boolean
         description: "If creates Artifacts"
 
+      signArtifacts:
+        required: false
+        default: true
+        type: boolean
+        description: "If sign Artifacts"
+
+      publishNuget:
+        required: false
+        default: false
+        type: boolean
+        description: "Publish to Nuget"
+
+      publishCustomNuget:
+        required: false
+        default: false
+        type: boolean
+        description: "Publish to Nuget"
+
+      customNugetSourceUrl:
+        required: false
+        default: ""
+        type: string
+        description: "Url of custom nuget (Ex: https://nuget.mydomain.com/v3/index.json)"
+
+      customNugetApiKey:
+        required: false
+        default: ""
+        type: string
+        description: "ApiKey of custom nuget"
+
+      createRelease:
+        required: false
+        default: false
+        type: boolean
+        description: "Create release"
+
       installWorkflows:
         required: false
         default: false
@@ -78,7 +114,14 @@ on:
         default: true
         type: boolean
         description: "If to use a SDK build"
+
     secrets:
+      SIGN_CLIENT_USER_ID:
+        required: false
+      SIGN_CLIENT_SECRET:
+        required: false
+      SIGN_CLIENT_CONFIG:
+        required: false
       NUGET_API_KEY:
         required: true
       CODECOV_TOKEN:
@@ -197,3 +240,52 @@ jobs:
         with:
           name: nuget
           path: "**/*.nupkg"
+
+      - name: Save SignClient Configuration
+        if: inputs.createArtifacts == true && inputs.signArtifacts == true
+        run: 'echo "$SIGN_CLIENT_CONFIG" > SignPackages.json'
+        shell: bash
+        env:
+            SIGN_CLIENT_CONFIG: ${{secrets.SIGN_CLIENT_CONFIG}}
+
+      - name: Sign NuGet Packages
+        if: inputs.createArtifacts == true && inputs.signArtifacts == true
+        uses: glennawatson/signclient@v1
+        with:
+            input-files: '**/*.nupkg'
+            sign-client-secret: ${{ secrets.SIGN_CLIENT_SECRET }}
+            sign-client-user: ${{ secrets.SIGN_CLIENT_USER_ID }}
+            project-name: reactiveui
+            description: reactiveui
+            config-file: SignPackages.json
+
+      - name: Changelog
+        uses: glennawatson/ChangeLog@v1
+        id: changelog
+
+      - name: Create Release
+        if: inputs.createArtifacts == true && inputs.createRelease == true
+        uses: actions/create-release@v1.1.4
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+            tag_name: ${{ steps.nbgv.outputs.SemVer2 }}
+            release_name: ${{ steps.nbgv.outputs.SemVer2 }}
+            body: |
+                ${{ steps.changelog.outputs.commitLog }}
+
+      - name: Publish to Nuget
+        if: inputs.createArtifacts == true && inputs.publishNuget == true
+        env:
+            NUGET_AUTH_TOKEN: ${{ secrets.NUGET_API_KEY }}
+            SOURCE_URL: https://api.nuget.org/v3/index.json
+        run: |
+            dotnet nuget push -s ${{ env.SOURCE_URL }} -k ${{ env.NUGET_AUTH_TOKEN }} --skip-duplicate **/*.nupkg
+
+      - name: Publish to Nuget
+        if: inputs.createArtifacts == true && inputs.publishCustomNuget == true
+        env:
+            NUGET_AUTH_TOKEN: ${{ inputs.customNugetApiKey }}
+            SOURCE_URL: ${{ inputs.customNugetSourceUrl }}
+        run: |
+            dotnet nuget push -s ${{ env.SOURCE_URL }} -k ${{ env.NUGET_AUTH_TOKEN }} --skip-duplicate **/*.nupkg

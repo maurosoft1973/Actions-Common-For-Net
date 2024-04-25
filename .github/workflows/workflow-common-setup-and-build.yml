@@ -6,7 +6,7 @@ on:
       configuration:
         required: true
         type: string
-        description: "The build configuration. Eg debug/release"
+        description: "The build configuration.(Ex debug/release)"
 
       productNamespacePrefix:
         required: false
@@ -26,16 +26,16 @@ on:
         type: boolean
         description: "Use the Maui Check dotnet tool to make sure Maui is up to date"
 
-      solutionFile:
-        required: false
-        type: string
-        description: "Optional name of a solution file founded in the srcFolder"
-
       srcFolder:
         required: false
         type: string
         default: "./"
         description: "The folder where the source can be found"
+
+      solutionFile:
+        required: false
+        type: string
+        description: "Optional name of a solution file founded in the srcFolder"
 
       performTests:
         required: false
@@ -116,10 +116,10 @@ on:
         required: true
       CUSTOM_NUGET_SOURCE_URL:
         required: false
-        description: "Url of custom nuget (Ex: https://nuget.mydomain.com/v3/index.json)"
+        description: "Url of self nuget (Ex: https://nuget.mydomain.com/v3/index.json)"
       CUSTOM_NUGET_API_KEY:
         required: false
-        description: "ApiKey of custom nuget"
+        description: "ApiKey of self nuget"
 
 jobs:
   build:
@@ -188,6 +188,14 @@ jobs:
         with:
           nuget-api-key: ${{ secrets.NuGetAPIKey }}
           nuget-version: "6.x"
+
+      - name: Nuget -> Restore from Cache
+        uses: actions/cache@v1
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
       - name: NuGet -> Restore
         run: nuget restore ${{ inputs.solutionFile }}
@@ -259,7 +267,9 @@ jobs:
         if: inputs.createRelease == true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          includeInvalidCommits: true
           tag: ${{ steps.nbgv.outputs.SemVer2 }}
+          reverseOrder: true
 
       - name: Create Release
         uses: ncipollo/release-action@v1.12.0

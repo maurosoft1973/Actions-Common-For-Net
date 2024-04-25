@@ -1,7 +1,7 @@
 
 
 ```yaml
-name: Build
+name: CI/CD
 
 on:
   push:
@@ -12,5 +12,4 @@ jobs:
     uses: maurosoft1973/actions-common-for-net/.github/workflows/workflow-common-setup-and-build.yml@main
     with:
       configuration: Release
-      srcFolder: "./"
 ```

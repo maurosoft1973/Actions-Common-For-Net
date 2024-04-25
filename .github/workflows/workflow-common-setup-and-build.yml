@@ -42,7 +42,7 @@ on:
 
       testProjectFile:
         required: false
-        default: "${{ inputs.srcFolder }}/**/*Test*.csproj"
+        default: ${{ inputs.srcFolder }}/**/*Test*.csproj
         type: string
         description: "The filepath of project file"
 
